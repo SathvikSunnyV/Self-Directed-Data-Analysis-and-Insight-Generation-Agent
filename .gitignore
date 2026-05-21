@@ -1,0 +1,18 @@
+# Environment variables
+.env
+.env.*
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Generated files
+backend/uploads/
+backend/outputs/
+
+# IDE
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
