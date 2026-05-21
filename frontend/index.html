@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Autonomous Data Analytics Agent</title>
+<style>
+:root{
+    --bg:#0b1020;
+    --panel:#121933;
+    --panel2:#18213f;
+    --border:#26304f;
+    --text:#e6ecff;
+    --muted:#8a97c7;
+    --accent:#6d7cff;
+    --green:#14b86a;
+    --red:#ff5c7a;
+    --yellow:#f7b955;
+    --purple:#a78bfa;
+    --cyan:#22d3ee;
+}
+
+*{ margin:0; padding:0; box-sizing:border-box; }
+
+body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:Inter,system-ui,sans-serif;
+    height:100vh;
+    overflow:hidden;
+}
+
+.app{
+    display:grid;
+    grid-template-columns:300px 1fr;
+    height:100vh;
+}
+
+/* ── SIDEBAR ──────────────────────────────────────── */
+.sidebar{
+    background:var(--panel);
+    border-right:1px solid var(--border);
+    display:flex;
+    flex-direction:column;
+    overflow-y:auto;
+}
+
+.logo{ padding:16px 18px; border-bottom:1px solid var(--border); }
+.logo h1{ font-size:15px; font-weight:700; }
+.logo p{ font-size:11px; color:var(--muted); margin-top:3px; }
+
+.section{ padding:14px 16px; border-bottom:1px solid var(--border); }
+
+.section h3{
+    font-size:10px;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:10px;
+    letter-spacing:.08em;
+    font-weight:600;
+}
+
+.upload-zone{
+    border:2px dashed var(--border);
+    border-radius:10px;
+    padding:18px;
+    text-align:center;
+    cursor:pointer;
+    transition:.2s;
+}
+
+.upload-zone:hover,.upload-zone.drag{
+    border-color:var(--accent);
+    background:rgba(109,124,255,.07);
+}
+
+.upload-zone span{ font-size:32px; }
+.upload-zone p{ margin-top:7px; color:var(--muted); font-size:12px; line-height:1.5; }
+
+#fileInput{ display:none; }
+
+.dataset-card{
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:10px 12px;
+    margin-bottom:8px;
+}
+
+.dataset-name{ font-size:13px; font-weight:600; word-break:break-all; }
+.dataset-meta{ margin-top:3px; font-size:11px; color:var(--muted); }
+.badge{
+    display:inline-block;
+    background:rgba(109,124,255,.18);
+    color:var(--accent);
+    font-size:10px;
+    padding:2px 7px;
+    border-radius:99px;
+    margin-top:5px;
+}
+
+label{ display:block; font-size:11px; color:var(--muted); margin-bottom:5px; }
+
+select, input[type=text], input[type=password], textarea{
+    width:100%;
+    background:var(--panel2);
+    color:var(--text);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:8px 10px;
+    font-size:13px;
+    font-family:inherit;
+}
+
+select{ cursor:pointer; }
+textarea{ resize:vertical; min-height:80px; }
+
+input[type=text]::placeholder,
+input[type=password]::placeholder,
+textarea::placeholder{ color:var(--muted); }
+
+.run-btn{
+    width:100%;
+    border:none;
+    background:linear-gradient(135deg,var(--accent),#8b5cf6);
+    color:white;
+    padding:12px;
+    border-radius:10px;
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+    transition:.2s;
+    letter-spacing:.02em;
+}
+.run-btn:hover{ opacity:.9; transform:translateY(-1px); }
+.run-btn:disabled{ opacity:.35; cursor:not-allowed; transform:none; }
+
+/* ── MAIN ──────────────────────────────────────────── */
+.main{ display:flex; flex-direction:column; overflow:hidden; }
+
+.topbar{
+    height:56px;
+    border-bottom:1px solid var(--border);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 22px;
+    background:var(--panel);
+    flex-shrink:0;
+    gap:16px;
+}
+
+.status-row{ display:flex; align-items:center; gap:10px; font-size:12px; flex:1; min-width:0; }
+
+.dot{ width:8px; height:8px; border-radius:50%; background:var(--red); flex-shrink:0; }
+.dot.online{ background:var(--green); }
+.dot.checking{ background:var(--yellow); animation:pulse 1s infinite; }
+
+@keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.status-text{ color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.status-model{ color:var(--accent); font-size:11px; white-space:nowrap; }
+
+/* ── TABS ───────────────────────────────────────────── */
+.tab-bar{
+    display:flex;
+    gap:2px;
+    padding:8px 18px 0;
+    border-bottom:1px solid var(--border);
+    background:var(--panel);
+    flex-shrink:0;
+}
+
+.tab{
+    padding:7px 14px;
+    font-size:12px;
+    cursor:pointer;
+    border-radius:7px 7px 0 0;
+    color:var(--muted);
+    border:1px solid transparent;
+    border-bottom:none;
+    transition:.15s;
+    white-space:nowrap;
+}
+
+.tab.active{
+    background:var(--bg);
+    color:var(--text);
+    border-color:var(--border);
+    font-weight:600;
+}
+
+/* ── CONTENT ────────────────────────────────────────── */
+.content{ flex:1; overflow:auto; padding:20px; }
+
+.empty{
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    color:var(--muted);
+    text-align:center;
+    gap:12px;
+}
+
+.empty span{ font-size:60px; }
+.empty h2{ font-size:20px; color:var(--text); }
+.empty p{ max-width:380px; font-size:14px; line-height:1.6; }
+
+/* ── PROGRESS ───────────────────────────────────────── */
+.progress-box{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:16px 18px;
+    margin-bottom:16px;
+}
+
+.progress-title{ font-size:14px; font-weight:600; }
+.progress-msg{ margin-top:6px; color:var(--muted); font-size:13px; min-height:20px; }
+.progress-sub{ margin-top:3px; color:var(--purple); font-size:12px; font-style:italic; min-height:18px; }
+
+.progress-bar{
+    height:6px;
+    background:var(--panel2);
+    border-radius:99px;
+    margin-top:12px;
+    overflow:hidden;
+}
+
+.progress-fill{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg,var(--accent),var(--purple));
+    transition:.4s;
+    border-radius:99px;
+}
+
+/* ── LOG STREAM ─────────────────────────────────────── */
+.log-stream{ display:flex; flex-direction:column; gap:6px; }
+
+.log-item{
+    background:var(--panel);
+    border-left:3px solid var(--border);
+    border-radius:7px;
+    padding:8px 12px;
+    font-size:12px;
+    line-height:1.5;
+}
+
+.log-item.progress{ border-left-color:var(--accent); }
+.log-item.dynamic{ border-left-color:var(--purple); }
+.log-item.error{ border-left-color:var(--red); }
+.log-item.success{ border-left-color:var(--green); }
+.log-item.thinking{ border-left-color:var(--yellow); }
+
+.log-label{
+    font-size:9px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--muted);
+    margin-bottom:3px;
+    font-weight:600;
+}
+
+/* ── REPORT ─────────────────────────────────────────── */
+.report{ max-width:860px; }
+.report h1{ font-size:22px; margin-bottom:14px; }
+.report h2{ margin-top:22px; margin-bottom:8px; font-size:16px; color:var(--accent); padding-bottom:6px; border-bottom:1px solid var(--border); }
+.report h3{ margin-top:14px; margin-bottom:6px; font-size:14px; }
+.report p{ line-height:1.75; margin-bottom:10px; font-size:13.5px; }
+.report ul{ padding-left:18px; margin-bottom:12px; }
+.report li{ margin-bottom:7px; font-size:13.5px; line-height:1.65; }
+.report pre{ background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:12px; overflow:auto; margin-bottom:12px; font-size:12px; }
+.report code{ color:#b8c4ff; }
+
+.schema-table{ width:100%; border-collapse:collapse; margin-top:8px; font-size:12px; }
+.schema-table th,.schema-table td{ border:1px solid var(--border); padding:8px 10px; text-align:left; }
+.schema-table th{ background:var(--panel2); font-size:10px; text-transform:uppercase; color:var(--muted); }
+
+/* ── CHIPS ───────────────────────────────────────────── */
+.chip-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+.chip{ background:var(--panel2); border:1px solid var(--border); border-radius:7px; padding:5px 10px; font-size:12px; }
+.chip span{ color:var(--accent); font-weight:600; }
+
+/* ── FINDINGS GRID ───────────────────────────────────── */
+.findings-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:10px; margin-top:10px; }
+
+.finding-card{
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:13px;
+}
+
+.finding-label{ font-size:9px; text-transform:uppercase; color:var(--accent); margin-bottom:6px; font-weight:700; letter-spacing:.07em; }
+.finding-card p{ font-size:13px; line-height:1.65; color:var(--text); }
+
+/* ── STEP CARDS ──────────────────────────────────────── */
+.step-card{ background:var(--panel); border:1px solid var(--border); border-radius:10px; margin-bottom:10px; overflow:hidden; }
+.step-header{ display:flex; align-items:center; gap:10px; padding:11px 14px; cursor:pointer; user-select:none; transition:.15s; }
+.step-header:hover{ background:var(--panel2); }
+
+.step-num{
+    width:26px; height:26px; border-radius:50%;
+    background:rgba(109,124,255,.18); color:var(--accent);
+    font-size:11px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+}
+.step-num.ok{ background:rgba(20,184,106,.18); color:var(--green); }
+.step-num.err{ background:rgba(255,92,122,.18); color:var(--red); }
+.step-num.dynamic{ background:rgba(167,139,250,.18); color:var(--purple); }
+
+.step-title{ font-size:13px; font-weight:600; flex:1; }
+.step-tool{ font-size:10px; color:var(--muted); font-family:monospace; }
+.step-chevron{ color:var(--muted); transition:.2s; font-size:14px; }
+.step-body{ display:none; padding:0 14px 14px; }
+.step-body.open{ display:block; }
+.step-reason{ font-size:11px; color:var(--purple); margin-bottom:8px; font-style:italic; }
+.step-interp{ font-size:13px; line-height:1.7; margin-bottom:8px; color:var(--text); }
+
+/* ── PLOTS ───────────────────────────────────────────── */
+.plots-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(400px,1fr)); gap:14px; margin-top:10px; }
+.plot-card{ background:var(--panel); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.plot-card img{ width:100%; display:block; background:white; }
+.plot-title{ padding:8px 12px; font-size:11px; color:var(--muted); word-break:break-all; }
+
+/* ── DOWNLOAD BTN ────────────────────────────────────── */
+.dl-btn{
+    display:inline-block;
+    background:linear-gradient(135deg,var(--accent),#8b5cf6);
+    color:white;
+    padding:8px 15px;
+    border-radius:8px;
+    text-decoration:none;
+    font-size:13px;
+    font-weight:600;
+    margin-bottom:18px;
+}
+.dl-btn:hover{ opacity:.88; }
+
+/* ── TOKEN NOTE ───────────────────────────────────────── */
+.token-note{ font-size:10px; color:var(--muted); margin-top:4px; line-height:1.5; }
+.token-note a{ color:var(--accent); text-decoration:none; }
+</style>
+</head>
+<body>
+<div class="app">
+
+    <!-- ── SIDEBAR ──────────────────────────── -->
+    <div class="sidebar">
+
+        <div class="logo">
+            <h1>🧠 Data Analytics Agent</h1>
+            <p>HuggingFace-powered autonomous analysis</p>
+        </div>
+
+        <div class="section">
+            <h3>Upload Dataset</h3>
+            <div class="upload-zone" id="uploadZone">
+                <span>📂</span>
+                <p>Drop CSV / Excel / JSON / Parquet<br>or click to browse</p>
+            </div>
+            <input type="file" id="fileInput" multiple accept=".csv,.xlsx,.xls,.json,.parquet">
+        </div>
+
+        <div class="section" id="datasetSection">
+            <h3>Loaded Datasets</h3>
+            <div id="datasetList">
+                <div class="dataset-card">
+                    <div class="dataset-meta">No datasets uploaded yet</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>LLM Model</h3>
+            <label>HuggingFace Model</label>
+            <select id="modelSelect">
+                <option value="meta-llama/Llama-3.2-3B-Instruct">Llama 3.2 3B Instruct (fast)</option>
+                <option value="meta-llama/Llama-3.1-8B-Instruct">Llama 3.1 8B Instruct (smart)</option>
+                <option value="Qwen/Qwen2.5-7B-Instruct">Qwen 2.5 7B Instruct</option>
+                <option value="mistralai/Mistral-7B-Instruct-v0.3">Mistral 7B Instruct</option>
+                <option value="microsoft/Phi-3.5-mini-instruct">Phi-3.5 Mini (very fast)</option>
+                <option value="HuggingFaceH4/zephyr-7b-beta">Zephyr 7B (no token needed)</option>
+                <option value="google/gemma-3-4b-it">Gemma 3 4B</option>
+            </select>
+            <div style="margin-top:10px;">
+                <label>HF Token (for gated models like Llama)</label>
+                <input type="password" id="hfToken" placeholder="hf_xxxxxxxxxxxxxx (optional)">
+                <div class="token-note">
+                    Free token: <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co/settings/tokens</a><br>
+                    Zephyr works without a token.
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Ask the Agent</h3>
+            <textarea id="questionInput" placeholder="Optional: e.g. 'Find anomalies in purchases', 'What drives churn?', 'Forecast revenue'"></textarea>
+        </div>
+
+        <div class="section">
+            <button class="run-btn" id="runBtn" disabled>
+                ▶ Run Autonomous Analysis
+            </button>
+        </div>
+
+    </div>
+
+    <!-- ── MAIN ──────────────────────────────── -->
+    <div class="main">
+
+        <div class="topbar">
+            <div class="status-row">
+                <div class="dot checking" id="llmDot"></div>
+                <span class="status-text" id="llmStatus">Checking LLM…</span>
+                <span class="status-model" id="llmModel"></span>
+            </div>
+        </div>
+
+        <div class="tab-bar" id="tabBar" style="display:none;">
+            <div class="tab active" data-tab="report">Report</div>
+            <div class="tab" data-tab="findings">Findings</div>
+            <div class="tab" data-tab="steps">Steps</div>
+            <div class="tab" data-tab="plots">Plots</div>
+            <div class="tab" data-tab="log">Run Log</div>
+        </div>
+
+        <div class="content" id="content">
+            <div class="empty">
+                <span>🤖</span>
+                <h2>Autonomous Data Analytics Agent</h2>
+                <p>
+                    Upload a dataset, choose a HuggingFace model, then click
+                    <strong>Run Autonomous Analysis</strong>.
+                    The agent cleans, profiles, explores, and visualises your data —
+                    then uses the LLM brain to decide what additional analyses reveal the most insight.
+                </p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+const API = ""
+
+const uploadZone   = document.getElementById("uploadZone")
+const fileInput    = document.getElementById("fileInput")
+const datasetList  = document.getElementById("datasetList")
+const runBtn       = document.getElementById("runBtn")
+const content      = document.getElementById("content")
+const questionInput= document.getElementById("questionInput")
+const tabBar       = document.getElementById("tabBar")
+
+let datasets = []
+let tabData  = { report:"", findings:[], steps:{}, plots:[], log:[] }
+
+// ── Health check ─────────────────────────────────────────────
+async function checkHealth(){
+    const dot = document.getElementById("llmDot")
+    const lbl = document.getElementById("llmStatus")
+    const mdl = document.getElementById("llmModel")
+    try{
+        const r = await fetch(`${API}/health`)
+        const d = await r.json()
+        dot.classList.remove("checking")
+        if(d.llm_available){
+            dot.classList.add("online")
+            lbl.textContent = "HuggingFace LLM ✓"
+            mdl.textContent = d.active_model || ""
+        } else {
+            lbl.textContent = "LLM offline — deterministic mode"
+            mdl.textContent = "(set HF_TOKEN for gated models)"
+        }
+    } catch(e){
+        dot.classList.remove("checking")
+        lbl.textContent = "Backend offline"
+    }
+}
+checkHealth()
+
+// ── Upload ────────────────────────────────────────────────────
+uploadZone.addEventListener("click", ()=> fileInput.click())
+uploadZone.addEventListener("dragover", e=>{ e.preventDefault(); uploadZone.classList.add("drag") })
+uploadZone.addEventListener("dragleave", ()=> uploadZone.classList.remove("drag"))
+uploadZone.addEventListener("drop", e=>{ e.preventDefault(); uploadZone.classList.remove("drag"); handleFiles(e.dataTransfer.files) })
+fileInput.addEventListener("change", ()=> handleFiles(fileInput.files))
+
+async function handleFiles(files){
+    const fd = new FormData()
+    for(const f of files) fd.append("files", f)
+    try{
+        const r = await fetch(`${API}/upload`, { method:"POST", body:fd })
+        const d = await r.json()
+        renderDatasets(d.uploads)
+    } catch(e){ alert("Upload failed: " + e) }
+}
+
+function renderDatasets(uploads){
+    datasets = uploads.filter(u=>u.status==="ok").map(u=>u.filename)
+    datasetList.innerHTML = ""
+    if(!uploads.length){
+        datasetList.innerHTML = `<div class="dataset-card"><div class="dataset-meta">No datasets yet</div></div>`
+    }
+    uploads.forEach(u=>{
+        const card = document.createElement("div")
+        card.className = "dataset-card"
+        if(u.status === "ok"){
+            const nc = (u.schema.numeric_cols||[]).length
+            const cc = (u.schema.categorical_cols||[]).length
+            const dc = (u.schema.datetime_cols||[]).length
+            card.innerHTML = `
+                <div class="dataset-name">${esc(u.filename)}</div>
+                <div class="dataset-meta">${u.shape[0].toLocaleString()} rows × ${u.shape[1]} cols</div>
+                <div class="chip-row" style="margin-top:5px;">
+                    <span class="chip">num <span>${nc}</span></span>
+                    <span class="chip">cat <span>${cc}</span></span>
+                    <span class="chip">dt <span>${dc}</span></span>
+                </div>
+                <div class="badge">${u.schema.domain}</div>`
+        } else {
+            card.innerHTML = `<div class="dataset-name">${esc(u.filename)}</div>
+                <div class="dataset-meta" style="color:var(--red);">${esc(u.error)}</div>`
+        }
+        datasetList.appendChild(card)
+    })
+    runBtn.disabled = datasets.length === 0
+}
+
+// ── Tabs ──────────────────────────────────────────────────────
+tabBar.querySelectorAll(".tab").forEach(t=>{
+    t.addEventListener("click", ()=>{
+        tabBar.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"))
+        t.classList.add("active")
+        renderTab(t.dataset.tab)
+    })
+})
+
+function renderTab(tab){
+    if(tab==="report")   renderReport()
+    else if(tab==="findings") renderFindings()
+    else if(tab==="steps")    renderSteps()
+    else if(tab==="plots")    renderPlots()
+    else if(tab==="log")      renderLog()
+}
+
+// ── Run ───────────────────────────────────────────────────────
+runBtn.addEventListener("click", runAnalysis)
+
+async function runAnalysis(){
+    if(!datasets.length){ alert("Upload a dataset first."); return }
+
+    tabData = { report:"", findings:[], steps:{}, plots:[], log:[] }
+    tabBar.style.display = "flex"
+
+    // Switch to log tab during run
+    tabBar.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"))
+    tabBar.querySelector('[data-tab="log"]').classList.add("active")
+
+    content.innerHTML = `
+        <div class="progress-box">
+            <div class="progress-title">🧠 Autonomous Agent Running</div>
+            <div class="progress-msg" id="pMsg">Initialising…</div>
+            <div class="progress-sub" id="pSub"></div>
+            <div class="progress-bar"><div class="progress-fill" id="pFill"></div></div>
+        </div>
+        <div class="log-stream" id="logStream"></div>`
+
+    const fd = new FormData()
+    fd.append("datasets", datasets.join(","))
+    fd.append("question", questionInput.value)
+    fd.append("model", document.getElementById("modelSelect").value)
+    fd.append("hf_token", document.getElementById("hfToken").value)
+
+    let response
+    try{
+        response = await fetch(`${API}/analyze/stream`, { method:"POST", body:fd })
+    } catch(e){
+        content.innerHTML = `<div class="log-item error"><div class="log-label">Fatal</div>${esc(String(e))}</div>`
+        return
+    }
+
+    const reader = response.body.getReader()
+    const dec = new TextDecoder()
+    let buf = ""
+
+    while(true){
+        const {value, done} = await reader.read()
+        if(done) break
+        buf += dec.decode(value, {stream:true})
+        const parts = buf.split("\n\n")
+        buf = parts.pop()
+        for(const part of parts){
+            if(!part.startsWith("data: ")) continue
+            try{ handleEvent(JSON.parse(part.slice(6))) } catch{}
+        }
+    }
+}
+
+// ── Event handler ─────────────────────────────────────────────
+function handleEvent(evt){
+    const ls = document.getElementById("logStream")
+
+    if(evt.type === "start"){
+        addLog("start", "Agent initialised for: " + (evt.datasets||[]).join(", "), "progress", ls)
+    }
+
+    else if(evt.type === "progress"){
+        const pct = evt.total > 0 ? Math.round(evt.step/evt.total*100) : 0
+        const pm = document.getElementById("pMsg")
+        const ps = document.getElementById("pSub")
+        const pf = document.getElementById("pFill")
+        if(pm) pm.textContent = evt.message
+        if(pf) pf.style.width = pct + "%"
+
+        // Detect dynamic steps from the LLM brain
+        const isDynamic = evt.message.startsWith("🔍") || evt.message.startsWith("🧠")
+        const cls = isDynamic ? "dynamic" : "progress"
+        if(ps && isDynamic) ps.textContent = "LLM brain suggested this step based on findings"
+        else if(ps) ps.textContent = ""
+
+        addLog(isDynamic ? "🧠 dynamic" : "step", evt.message, cls, ls)
+        tabData.log.push({label: isDynamic ? "dynamic" : "step", text: evt.message})
+    }
+
+    else if(evt.type === "error"){
+        addLog("error", evt.message, "error", ls)
+        tabData.log.push({label:"error", text:evt.message})
+    }
+
+    else if(evt.type === "complete"){
+        const result = evt.result
+        document.getElementById("pFill").style.width = "100%"
+        document.getElementById("pMsg").textContent = "Analysis complete ✓"
+        document.getElementById("pSub").textContent = ""
+
+        tabData.report    = result.report_markdown || ""
+        tabData.findings  = (result.memory||{}).findings || []
+        tabData.steps     = result.results || {}
+        tabData.plots     = result.plot_paths || []
+        tabData.reportPath= result.report_path
+        tabData.schema    = result.schema || {}
+
+        // Switch to report tab
+        tabBar.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"))
+        tabBar.querySelector('[data-tab="report"]').classList.add("active")
+        renderReport()
+
+        const plotTab = tabBar.querySelector('[data-tab="plots"]')
+        if(tabData.plots.length) plotTab.textContent = `Plots (${tabData.plots.length})`
+
+        // Count dynamic steps
+        const dynCount = Object.values(tabData.steps).filter(s=>s.name.startsWith("[Dynamic]")).length
+        const stepsTab = tabBar.querySelector('[data-tab="steps"]')
+        if(dynCount > 0) stepsTab.textContent = `Steps (${dynCount} dynamic)`
+    }
+}
+
+function addLog(label, text, cls, container){
+    if(!container) return
+    const div = document.createElement("div")
+    div.className = "log-item " + (cls||"")
+    div.innerHTML = `<div class="log-label">${esc(label)}</div>${esc(text)}`
+    container.appendChild(div)
+    div.scrollIntoView({behavior:"smooth", block:"nearest"})
+}
+
+// ── Tab renderers ─────────────────────────────────────────────
+
+function renderReport(){
+    const s = tabData.schema || {}
+    const findings = (tabData.findings || []).filter(f => !f.includes("ERROR") && f.length > 20)
+
+    let html = `<div class="report">`
+
+    if(tabData.reportPath){
+        html += `<a class="dl-btn" href="${API}/download-report?path=${encodeURIComponent(tabData.reportPath)}" target="_blank">⬇ Download Report</a>`
+    }
+
+    // Schema chips
+    if(s.rows){
+        html += `<h2>Dataset Overview</h2>
+        <div class="chip-row">
+            <div class="chip">Rows <span>${s.rows.toLocaleString()}</span></div>
+            <div class="chip">Columns <span>${s.cols}</span></div>
+            <div class="chip">Domain <span>${s.domain}</span></div>
+            <div class="chip">Missing <span>${s.total_missing||0}</span></div>
+        </div>
+        <div class="chip-row" style="margin-top:4px;">
+            <div class="chip">Numeric <span>${(s.numeric_cols||[]).length}</span></div>
+            <div class="chip">Categorical <span>${(s.categorical_cols||[]).length}</span></div>
+            <div class="chip">Datetime <span>${(s.datetime_cols||[]).length}</span></div>
+            <div class="chip">Text <span>${(s.text_cols||[]).length}</span></div>
+        </div>`
+    }
+
+    // Key findings as insight cards
+    if(findings.length){
+        html += `<h2>Key Insights</h2><div class="findings-grid">`
+        findings.slice(0,12).forEach((f,i)=>{
+            // Strip step name prefix if present
+            const text = f.includes(": ") ? f.split(": ").slice(1).join(": ") : f
+            const icons = ["🔍","📊","⚡","🎯","📈","🔗","⚠️","💡","🏆","🧩","📉","🌀"]
+            html += `<div class="finding-card">
+                <div class="finding-label">${icons[i%icons.length]} Insight ${i+1}</div>
+                <p>${esc(text)}</p>
+            </div>`
+        })
+        html += `</div>`
+    }
+
+    // Full report markdown as readable HTML
+    if(tabData.report){
+        html += `<h2>Full Report</h2>`
+        // Simple markdown → HTML
+        const md = tabData.report
+            .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+            .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+            .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/^- (.+)$/gm, '<li>$1</li>')
+            .replace(/(<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`)
+            .replace(/```[\s\S]*?```/g, m => `<pre><code>${esc(m.replace(/```\w*\n?/g,'').replace(/```$/,''))}</code></pre>`)
+            .replace(/\n\n/g, '</p><p>')
+        html += `<div style="margin-top:12px;">${md}</div>`
+    }
+
+    html += `</div>`
+    content.innerHTML = html
+}
+
+function renderFindings(){
+    const findings = (tabData.findings||[]).filter(f=>!f.includes("ERROR") && f.length > 20)
+    if(!findings.length){
+        content.innerHTML = `<div class="empty"><span>🔍</span><h2>No Findings Yet</h2><p>Run an analysis first.</p></div>`
+        return
+    }
+    let html = `<h2 style="margin-bottom:12px;">All Insights (${findings.length})</h2><div class="findings-grid">`
+    findings.forEach((f,i)=>{
+        const text = f.includes(": ") ? f.split(": ").slice(1).join(": ") : f
+        html += `<div class="finding-card">
+            <div class="finding-label">Insight ${i+1}</div>
+            <p>${esc(text)}</p>
+        </div>`
+    })
+    html += `</div>`
+    content.innerHTML = html
+}
+
+function renderSteps(){
+    const steps = tabData.steps||{}
+    const keys = Object.keys(steps)
+    if(!keys.length){
+        content.innerHTML = `<div class="empty"><span>📋</span><h2>No Steps Yet</h2><p>Run an analysis first.</p></div>`
+        return
+    }
+
+    const total = keys.length
+    const dynamic = keys.filter(k => steps[k].name.startsWith("[Dynamic]")).length
+    let html = `<h2 style="margin-bottom:4px;">Analysis Steps (${total})`
+    if(dynamic > 0) html += ` <span style="color:var(--purple);font-size:13px;">— ${dynamic} added dynamically by LLM brain</span>`
+    html += `</h2><p style="color:var(--muted);font-size:12px;margin-bottom:14px;">Click a step to see the insight and raw data</p>`
+
+    keys.forEach((id, idx)=>{
+        const step = steps[id]
+        if(step.tool === "finish") return
+        const isDynamic = step.name.startsWith("[Dynamic]")
+        const hasError = step.raw_result?.includes("ERROR") || step.raw_result?.includes("not found")
+        const numCls = hasError ? "err" : isDynamic ? "dynamic" : "ok"
+        const icon = hasError ? "✕" : isDynamic ? "🧠" : (idx+1)
+
+        html += `
+        <div class="step-card">
+            <div class="step-header" onclick="toggleStep(this)">
+                <div class="step-num ${numCls}">${icon}</div>
+                <div>
+                    <div class="step-title">${esc(step.name.replace("[Dynamic] ",""))}</div>
+                    <div class="step-tool">${esc(step.tool||"")}</div>
+                </div>
+                ${isDynamic ? `<div style="margin-left:auto;margin-right:8px;font-size:10px;color:var(--purple);white-space:nowrap;">LLM-decided</div>` : ""}
+                <div class="step-chevron">›</div>
+            </div>
+            <div class="step-body">
+                ${step.args?.reason ? `<div class="step-reason">Why: ${esc(step.args.reason)}</div>` : ""}
+                <div class="step-interp">${esc(step.interpretation||"")}</div>
+                ${step.raw_result && !step.raw_result.startsWith("ERROR")
+                    ? `<pre style="max-height:280px;overflow:auto;">${esc(step.raw_result.slice(0,2000))}</pre>`
+                    : ""}
+            </div>
+        </div>`
+    })
+
+    content.innerHTML = html
+}
+
+function toggleStep(header){
+    const body = header.nextElementSibling
+    const chev = header.querySelector(".step-chevron")
+    body.classList.toggle("open")
+    chev.style.transform = body.classList.contains("open") ? "rotate(90deg)" : ""
+}
+
+function renderPlots(){
+    const plots = tabData.plots||[]
+    if(!plots.length){
+        content.innerHTML = `<div class="empty"><span>📊</span><h2>No Plots Yet</h2><p>Run an analysis first.</p></div>`
+        return
+    }
+    let html = `<h2 style="margin-bottom:12px;">Visualizations (${plots.length})</h2><div class="plots-grid">`
+    plots.forEach(p=>{
+        const fname = p.split(/[\\/]/).pop() || p
+        html += `<div class="plot-card">
+            <img src="/outputs/${fname}" alt="${esc(fname)}" loading="lazy" onerror="this.style.display='none'">
+            <div class="plot-title">${esc(fname)}</div>
+        </div>`
+    })
+    html += `</div>`
+    content.innerHTML = html
+}
+
+function renderLog(){
+    const items = tabData.log||[]
+    if(!items.length){
+        content.innerHTML = `<div class="empty"><span>📜</span><h2>Run Log</h2><p>Appears here during analysis.</p></div>`
+        return
+    }
+    let html = `<h2 style="margin-bottom:12px;">Run Log (${items.length} events)</h2><div class="log-stream">`
+    items.forEach(it=>{
+        const cls = it.label === "error" ? "error" : it.label === "dynamic" ? "dynamic" : "progress"
+        html += `<div class="log-item ${cls}"><div class="log-label">${esc(it.label)}</div>${esc(it.text)}</div>`
+    })
+    html += `</div>`
+    content.innerHTML = html
+}
+
+function esc(t){ const d=document.createElement("div"); d.innerText=String(t||""); return d.innerHTML }
+</script>
+</body>
+</html>
